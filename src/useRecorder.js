@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
-import { leanAngle, tripStats } from './stats.js'
+import { haversine, createLeanTracker, tripStats } from './stats.js'
 import { addTrip, saveCurrent, loadCurrent, clearCurrent } from './storage.js'
 
-const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent)
+const isIOS =
+  /iPhone|iPad|iPod/.test(navigator.userAgent) ||
+  (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1)
 
 export function useRecorder(onSaved) {
   const [pos, setPos] = useState(null) // {lat, lon, speed}
@@ -10,15 +12,37 @@ export function useRecorder(onSaved) {
   const [points, setPoints] = useState([])
   const [recording, setRecording] = useState(false)
   const [error, setError] = useState(null)
-  const r = useRef({ recording: false, points: [], speed: 0, lean: 0, peak: 0, wake: null })
+  const r = useRef({
+    recording: false,
+    points: [],
+    speed: 0,
+    speedAt: 0,
+    lastPos: null,
+    lean: 0,
+    peak: 0,
+    wake: null,
+    tracker: createLeanTracker(isIOS),
+  })
 
   // GPS toujours actif (carte + navigation), enregistré seulement pendant un trajet
   useEffect(() => {
     if (!navigator.geolocation) return setError('GPS non disponible sur cet appareil')
     const id = navigator.geolocation.watchPosition(
       ({ coords, timestamp }) => {
-        const p = { lat: coords.latitude, lon: coords.longitude, speed: coords.speed }
-        r.current.speed = coords.speed ?? r.current.speed
+        const now = performance.now()
+        let speed = coords.speed != null && coords.speed >= 0 ? coords.speed : null
+        if (speed == null && coords.accuracy <= 50 && r.current.lastPos) {
+          const dt = (timestamp - r.current.lastPos.t) / 1000
+          if (dt > 0.5 && dt < 5) {
+            speed = haversine(r.current.lastPos, { lat: coords.latitude, lon: coords.longitude }) / dt
+          }
+        }
+        if (coords.accuracy <= 50) {
+          r.current.lastPos = { lat: coords.latitude, lon: coords.longitude, t: timestamp }
+        }
+        const p = { lat: coords.latitude, lon: coords.longitude, speed }
+        r.current.speed = speed ?? 0
+        r.current.speedAt = now
         setPos(p)
         if (!r.current.recording) return
         if (coords.accuracy > 50) return // point GPS trop imprécis
@@ -38,15 +62,21 @@ export function useRecorder(onSaved) {
     const onMotion = (e) => {
       const g = e.accelerationIncludingGravity
       const rr = e.rotationRate
-      if (!g || !rr || g.x == null || rr.alpha == null) return
-      const s = isIOS ? -1 : 1 // iOS inverse le signe de l'accéléromètre
-      const k = Math.PI / 180
-      const raw = leanAngle(
-        { x: s * g.x, y: s * g.y, z: s * g.z },
-        { x: rr.beta * k, y: rr.gamma * k, z: rr.alpha * k },
-        r.current.speed || 0
-      )
-      const l = (r.current.lean = r.current.lean * 0.9 + raw * 0.1) // lissage
+      if (
+        !g ||
+        !rr ||
+        g.x == null ||
+        g.y == null ||
+        g.z == null ||
+        rr.alpha == null ||
+        rr.beta == null ||
+        rr.gamma == null
+      ) {
+        return
+      }
+      const now = performance.now()
+      const v = now - r.current.speedAt <= 3000 ? r.current.speed : 0
+      const l = (r.current.lean = r.current.tracker.update(g, rr, v, now))
       if (Math.abs(l) > Math.abs(r.current.peak)) r.current.peak = l
     }
     window.addEventListener('devicemotion', onMotion)
@@ -82,6 +112,7 @@ export function useRecorder(onSaved) {
     await lockScreen()
     r.current.points = resume ? loadCurrent() || [] : []
     r.current.peak = 0
+    r.current.tracker.resetLean()
     r.current.recording = true
     setPoints(r.current.points)
     setRecording(true)
