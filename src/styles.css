@@ -122,6 +122,99 @@ button {
   box-shadow: 0 0 8px rgba(239, 68, 68, 0.8);
 }
 
+.pill.btn {
+  color: var(--text);
+}
+
+.pill.btn.on {
+  border-color: rgba(59, 130, 246, 0.6);
+  background: rgba(0, 87, 255, 0.24);
+  color: #93c5fd;
+}
+
+.debug-panel {
+  margin: 0 16px 6px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  background: rgba(15, 18, 24, 0.96);
+  border: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 1100;
+  flex-shrink: 0;
+}
+
+.debug-readout {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.debug-readout b {
+  color: var(--text);
+}
+
+.debug-empty {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.debug-empty button {
+  padding: 5px 10px;
+  border-radius: 8px;
+  background: rgba(0, 87, 255, 0.24);
+  border: 1px solid rgba(59, 130, 246, 0.55);
+  color: #93c5fd;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.debug-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.debug-actions button {
+  padding: 7px 10px;
+  border-radius: 10px;
+  background: var(--elevated);
+  border: 1px solid var(--border);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.debug-actions button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.debug-actions button.on {
+  background: rgba(0, 87, 255, 0.26);
+  border-color: rgba(59, 130, 246, 0.65);
+  color: #93c5fd;
+}
+
+.debug-text {
+  width: 100%;
+  padding: 8px;
+  border-radius: 8px;
+  background: #050608;
+  border: 1px solid var(--border);
+  color: var(--text);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11px;
+  user-select: text;
+  -webkit-user-select: text;
+}
+
 @keyframes pulse {
   0%,
   100% {

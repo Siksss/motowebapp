@@ -12,7 +12,8 @@ test('inclinaison : virage à gauche à 72 km/h, ~0.35 rad/s => 45°', () => {
   const lean = leanAngle({ x: 0, y: 9.81, z: 0 }, { x: 0, y: 0.3468, z: 0 }, 20)
   assert.ok(Math.abs(lean - 45) < 0.5, lean)
   assert.ok(leanAngle({ x: 0, y: 9.81, z: 0 }, { x: 0, y: -0.3468, z: 0 }, 20) < -44)
-  assert.equal(leanAngle({ x: 0, y: 9.81, z: 0 }, { x: 0, y: 1, z: 0 }, 1), 0)
+  assert.equal(leanAngle({ x: 0, y: 9.81, z: 0 }, { x: 0, y: 1, z: 0 }, 0), 0)
+  assert.ok(leanAngle({ x: 0, y: 9.81, z: 0 }, { x: 0, y: 1, z: 0 }, 1) > 5)
 })
 
 test('motionToFrame : mapping iOS (CoreMotion) vs Android (W3C)', () => {
@@ -75,28 +76,39 @@ test('createLeanTracker iOS ligne droite : rejette tangage, roulis et chocs', ()
   assert.ok(maxAbs < 2, `fausse inclinaison trop élevée : ${maxAbs}°`)
 })
 
-test('createLeanTracker : coupure basse vitesse et atténuation d\'un à-coup bref', () => {
+test('createLeanTracker : actif sous 14 km/h, 0 à l\'arrêt et atténuation d\'un à-coup bref', () => {
   const c = Math.SQRT1_2
   const accel = { x: 0, y: -9.81 * c, z: -9.81 * c }
   const tracker = createLeanTracker(true)
   let t = 0
 
-  // À basse vitesse (< 4 m/s), même un fort braquage donne 0° et ne s'accumule pas
+  // À l'arrêt (v = 0), même un fort mouvement donne 0° et ne s'accumule pas
   for (let i = 0; i < 100; i++) {
-    const lean = tracker.update(accel, { alpha: 0, beta: 60 * c, gamma: 60 * c }, 2, (t += 20))
+    const lean = tracker.update(accel, { alpha: 0, beta: 60 * c, gamma: 60 * c }, 0, (t += 20))
     assert.equal(lean, 0)
   }
+  assert.equal(tracker.state().omega, 0)
   const afterAccel = tracker.update(accel, { alpha: 0, beta: 0, gamma: 0 }, 15, (t += 20))
   assert.equal(afterAccel, 0)
 
+  // À 2 m/s (~7 km/h, sous l'ancien seuil de 14 km/h), l'inclinaison s'active bien
+  let lowSpeedLean = 0
+  for (let i = 0; i < 100; i++) {
+    lowSpeedLean = tracker.update(accel, { alpha: 0, beta: 60 * c, gamma: 60 * c }, 2, (t += 20))
+  }
+  assert.ok(lowSpeedLean > 10, `attendu > 10° à 2 m/s, reçu ${lowSpeedLean}`)
+  assert.ok(tracker.state().omega > 0.5)
+
   // À-coup de lacet de 0.2 s équivalent à 30° à 20 m/s : fortement atténué
+  const twitchTracker = createLeanTracker(true)
   const omegaDeg = ((0.5 * 9.81) / 20) * (180 / Math.PI)
   let peak = 0
   for (let i = 0; i < 10; i++) {
-    const lean = tracker.update(accel, { alpha: 0, beta: omegaDeg * c, gamma: omegaDeg * c }, 20, (t += 20))
+    const lean = twitchTracker.update(accel, { alpha: 0, beta: omegaDeg * c, gamma: omegaDeg * c }, 20, (t += 20))
     peak = Math.max(peak, Math.abs(lean))
   }
   assert.ok(peak < 8, `à-coup bref trop fort : ${peak}°`)
+  assert.ok(twitchTracker.state().omega > 0)
 })
 
 test('stats d\'un trajet', () => {

@@ -27,7 +27,7 @@ const SPEED_ARC_LEN = (240 / 360) * 2 * Math.PI * SPEED_R
 const SPEED_TRACK = arcPath(140, 140, SPEED_R, 150, 390)
 const SPEED_TICKS = Array.from({ length: 11 }, (_, i) => i * 20)
 
-function SpeedGauge({ speed, maxSpeed, recording, hasPos }) {
+function SpeedGauge({ speed, maxSpeed, recording, hasPos, simSpeed }) {
   const pct = Math.max(0, Math.min(1, (speed ?? 0) / 200))
   return (
     <div className="speed-gauge">
@@ -89,7 +89,13 @@ function SpeedGauge({ speed, maxSpeed, recording, hasPos }) {
         </div>
         <div className="speed-unit">KM/H</div>
         <div className="speed-pill">
-          {recording ? `MAX ${Math.round(maxSpeed)} km/h` : hasPos ? 'PRÊT' : 'GPS…'}
+          {recording
+            ? `MAX ${Math.round(maxSpeed)} km/h`
+            : simSpeed
+              ? 'SIM 50'
+              : hasPos
+                ? 'PRÊT'
+                : 'GPS…'}
         </div>
       </div>
     </div>
@@ -222,6 +228,9 @@ function Ride({ rec }) {
   const [msg, setMsg] = useState('')
   const [now, setNow] = useState(() => Date.now())
   const [startedAt, setStartedAt] = useState(null)
+  const [debugOpen, setDebugOpen] = useState(false)
+  const [copyStatus, setCopyStatus] = useState('')
+  const [fallbackText, setFallbackText] = useState('')
   const { pos, lean, points, recording } = rec
 
   useEffect(() => {
@@ -239,10 +248,31 @@ function Ride({ rec }) {
   const liveStats = useMemo(() => tripStats(points), [points])
   const t0 = points[0]?.t ?? startedAt
   const elapsed = recording && t0 ? Math.max(0, Math.floor((now - t0) / 1000)) : 0
-  const speedKmh = pos?.speed != null ? Math.round(pos.speed * 3.6) : null
+  const speedKmh = rec.simSpeed ? 50 : pos?.speed != null ? Math.round(pos.speed * 3.6) : null
   const liveMaxSpeed = recording ? Math.max(liveStats.maxSpeed, speedKmh ?? 0) : 0
   const liveMaxL = recording ? Math.max(liveStats.maxLeanLeft, lean > 0 ? lean : 0) : 0
   const liveMaxR = recording ? Math.max(liveStats.maxLeanRight, lean < 0 ? -lean : 0) : 0
+
+  async function copyLogs() {
+    const text = rec.exportLogs()
+    try {
+      await navigator.clipboard.writeText(text)
+      setFallbackText('')
+      setCopyStatus('Copié !')
+      setTimeout(() => setCopyStatus(''), 2000)
+    } catch {
+      setFallbackText(text)
+    }
+  }
+
+  async function shareLogs() {
+    const text = rec.exportLogs()
+    try {
+      await navigator.share({ title: 'MotoWebApp logs', text })
+    } catch (err) {
+      if (err?.name !== 'AbortError') setFallbackText(text)
+    }
+  }
 
   async function search(e) {
     e.preventDefault()
@@ -280,6 +310,17 @@ function Ride({ rec }) {
               {hms(elapsed)}
             </span>
           )}
+          <button
+            type="button"
+            className={debugOpen ? 'pill btn on' : 'pill btn'}
+            onClick={() => {
+              const next = !debugOpen
+              setDebugOpen(next)
+              if (next) rec.requestSensors()
+            }}
+          >
+            Log
+          </button>
         </div>
         <div className="seg" role="tablist" aria-label="Mode d'affichage">
           <button
@@ -298,6 +339,68 @@ function Ride({ rec }) {
           </button>
         </div>
       </header>
+
+      {debugOpen && (
+        <div className="debug-panel">
+          <div className="debug-readout">
+            {rec.debug ? (
+              <>
+                <div>
+                  v: <b>{rec.debug.v}</b> km/h · ω: <b>{rec.debug.w}</b> · lean: <b>{rec.debug.lean}°</b>
+                </div>
+                <div>
+                  acc: {rec.debug.ax}, {rec.debug.ay}, {rec.debug.az}
+                </div>
+                <div>
+                  rot: {rec.debug.ra}, {rec.debug.rb}, {rec.debug.rg}
+                </div>
+              </>
+            ) : (
+              <div className="debug-empty">
+                <span>Capteurs inactifs</span>
+                <button type="button" onClick={() => rec.requestSensors()}>
+                  Activer capteurs
+                </button>
+              </div>
+            )}
+          </div>
+          <div className="debug-actions">
+            <button
+              type="button"
+              className={rec.simSpeed ? 'on' : ''}
+              onClick={() => rec.toggleSimSpeed()}
+            >
+              Simuler 50 km/h
+            </button>
+            <button type="button" onClick={copyLogs} disabled={!rec.logCount}>
+              {copyStatus || `Copier (${rec.logCount})`}
+            </button>
+            {typeof navigator.share === 'function' && (
+              <button type="button" onClick={shareLogs} disabled={!rec.logCount}>
+                Partager
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={() => {
+                rec.clearLogs()
+                setFallbackText('')
+              }}
+            >
+              Vider
+            </button>
+          </div>
+          {fallbackText && (
+            <textarea
+              className="debug-text"
+              readOnly
+              rows={4}
+              value={fallbackText}
+              onFocus={(e) => e.target.select()}
+            />
+          )}
+        </div>
+      )}
 
       {mode === 'cockpit' ? (
         <div className="cockpit">
@@ -318,7 +421,13 @@ function Ride({ rec }) {
               </button>
             </div>
           )}
-          <SpeedGauge speed={speedKmh} maxSpeed={liveMaxSpeed} recording={recording} hasPos={!!pos} />
+          <SpeedGauge
+            speed={speedKmh}
+            maxSpeed={liveMaxSpeed}
+            recording={recording}
+            hasPos={!!pos}
+            simSpeed={rec.simSpeed}
+          />
           <LeanGauge lean={lean} maxLeft={liveMaxL} maxRight={liveMaxR} />
           <div className="strip">
             <div>

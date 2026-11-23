@@ -2,7 +2,7 @@
 
 const R = 6371000
 const G = 9.81
-const MIN_SPEED = 4 // m/s (~14 km/h) : en dessous, le braquage domine l'inclinaison
+const MIN_SPEED = 0 // shortcut: seuil basse vitesse désactivé pour test, remettre à 4 m/s une fois validé
 const rad = (d) => (d * Math.PI) / 180
 
 export function haversine(a, b) {
@@ -13,7 +13,7 @@ export function haversine(a, b) {
 }
 
 function leanFromOmega(omega, v) {
-  if (!(v >= MIN_SPEED)) return 0
+  if (!(v > 0) || v < MIN_SPEED) return 0
   const s = Math.max(-1, Math.min(1, (v * omega) / G))
   return (Math.asin(s) * 180) / Math.PI
 }
@@ -42,7 +42,7 @@ export function motionToFrame(accel, rotRate, isIOS) {
  */
 export function leanAngle(up, rot, v) {
   const n = Math.hypot(up.x, up.y, up.z)
-  if (!n || !(v >= MIN_SPEED)) return 0
+  if (!n || !(v > 0) || v < MIN_SPEED) return 0
   const omega = (rot.x * up.x + rot.y * up.y + rot.z * up.z) / n
   return leanFromOmega(omega, v)
 }
@@ -70,21 +70,21 @@ export function createLeanTracker(isIOS) {
       if (!rawNorm) return 0
       up = { ...rawUp }
     } else if (rawNorm > 5 && rawNorm < 18) {
-      const aUp = 1 - Math.exp(-dt / (v >= MIN_SPEED ? 5 : 0.5))
+      const aUp = 1 - Math.exp(-dt / (v >= 4 ? 5 : 0.5))
       up.x += aUp * (rawUp.x - up.x)
       up.y += aUp * (rawUp.y - up.y)
       up.z += aUp * (rawUp.z - up.z)
     }
 
     const n = Math.hypot(up.x, up.y, up.z)
-    const omega = n && v >= MIN_SPEED ? (rot.x * up.x + rot.y * up.y + rot.z * up.z) / n : 0
+    const omega = n && v > 0 && v >= MIN_SPEED ? (rot.x * up.x + rot.y * up.y + rot.z * up.z) / n : 0
     const aW = 1 - Math.exp(-dt / 0.3)
     w1 += aW * (omega - w1)
     w2 += aW * (w1 - w2)
     return leanFromOmega(w2, v)
   }
 
-  return { update, resetLean }
+  return { update, resetLean, state: () => ({ up, omega: w2 }) }
 }
 
 /** points: [{lat, lon, t(ms), speed(m/s|null), lean(deg)}] */
