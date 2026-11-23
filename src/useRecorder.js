@@ -80,7 +80,7 @@ export function useRecorder(onSaved) {
       if (Math.abs(l) > Math.abs(r.current.peak)) r.current.peak = l
     }
     window.addEventListener('devicemotion', onMotion)
-    const ui = setInterval(() => setLean(r.current.lean), 200)
+    const ui = setInterval(() => setLean(r.current.lean), 100)
     const onVis = () => {
       if (r.current.recording && document.visibilityState === 'visible') lockScreen()
     }
