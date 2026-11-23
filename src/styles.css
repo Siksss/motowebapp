@@ -5,7 +5,7 @@
   --border: rgba(255, 255, 255, 0.08);
   --text: #f8fafc;
   --muted: #8b95a7;
-  --accent: #ff6a00;
+  --accent: #0057ff;
   --danger: #ef4444;
   --ok: #22c55e;
   --nav: #38bdf8;
@@ -42,7 +42,7 @@ button {
   height: 100%;
   display: flex;
   flex-direction: column;
-  background: radial-gradient(circle at 50% 18%, rgba(255, 106, 0, 0.08), transparent 55%), var(--bg);
+  background: radial-gradient(circle at 50% 18%, rgba(0, 87, 255, 0.13), transparent 55%), var(--bg);
 }
 
 .error {
@@ -218,7 +218,7 @@ button {
 
 .speed-arc {
   transition: stroke-dashoffset 0.25s ease-out, opacity 0.2s ease;
-  filter: drop-shadow(0 0 8px rgba(255, 106, 0, 0.45));
+  filter: drop-shadow(0 0 8px rgba(0, 87, 255, 0.55));
 }
 
 .tick-label {
@@ -342,7 +342,7 @@ button {
 }
 
 .dir.active {
-  color: var(--accent);
+  color: #3b82f6;
 }
 
 /* Live telemetry strip */
@@ -398,8 +398,8 @@ button {
 }
 
 .cta.start {
-  background: linear-gradient(135deg, #ff7b00, #ff4d00);
-  box-shadow: 0 8px 24px rgba(255, 106, 0, 0.35);
+  background: linear-gradient(135deg, #1d6bff, #0044cc);
+  box-shadow: 0 8px 24px rgba(0, 87, 255, 0.4);
 }
 
 .cta.stop {
@@ -560,7 +560,7 @@ button {
 }
 
 .hud button.start {
-  background: linear-gradient(135deg, #ff7b00, #ff4d00);
+  background: linear-gradient(135deg, #1d6bff, #0044cc);
 }
 
 .hud button.stop {
@@ -594,7 +594,7 @@ button {
 }
 
 .tabs button.on {
-  color: var(--accent);
+  color: #3b82f6;
 }
 
 .tabs button.on::before {
@@ -653,7 +653,7 @@ button {
 .hero {
   padding: 18px;
   margin-bottom: 14px;
-  background: linear-gradient(145deg, rgba(255, 106, 0, 0.14), rgba(15, 18, 24, 0.95) 60%);
+  background: linear-gradient(145deg, rgba(0, 87, 255, 0.2), rgba(15, 18, 24, 0.95) 60%);
 }
 
 .hero small {
@@ -718,8 +718,8 @@ button {
 .dist-badge {
   padding: 4px 10px;
   border-radius: 999px;
-  background: rgba(255, 106, 0, 0.16);
-  color: #ff9f5a;
+  background: rgba(0, 87, 255, 0.2);
+  color: #60a5fa;
   font-size: 13px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
@@ -829,11 +829,11 @@ button {
   display: block;
   height: 100%;
   border-radius: 999px;
-  background: linear-gradient(90deg, #ff6a00, #ff9500);
+  background: linear-gradient(90deg, #0057ff, #3b82f6);
 }
 
 .bar-half.left i {
-  background: linear-gradient(270deg, #ff6a00, #ff9500);
+  background: linear-gradient(270deg, #0057ff, #3b82f6);
 }
 
 .stats {

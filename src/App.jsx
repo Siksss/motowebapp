@@ -34,8 +34,8 @@ function SpeedGauge({ speed, maxSpeed, recording, hasPos }) {
       <svg viewBox="0 0 280 230" className="speed-svg" aria-hidden="true">
         <defs>
           <linearGradient id="speedGrad" x1="0%" y1="100%" x2="100%" y2="0%">
-            <stop offset="0%" stopColor="#ff9500" />
-            <stop offset="65%" stopColor="#ff5500" />
+            <stop offset="0%" stopColor="#3b82f6" />
+            <stop offset="65%" stopColor="#0057ff" />
             <stop offset="100%" stopColor="#ef4444" />
           </linearGradient>
         </defs>
@@ -103,7 +103,7 @@ function LeanGauge({ lean, maxLeft, maxRight }) {
   const vis = Math.max(-55, Math.min(55, lean))
   const abs = Math.abs(lean)
   const high = Math.abs(vis) >= 40
-  const color = high ? '#ef4444' : '#ff6a00'
+  const color = high ? '#ef4444' : '#0057ff'
   const activeArc =
     vis > 0.5
       ? arcPath(140, 100, 76, 270 - vis, 270)
@@ -371,14 +371,14 @@ function Ride({ rec }) {
             <TileLayer url={TILES} attribution="© OpenStreetMap" />
             {nav && <Polyline positions={nav.coords} color="#38bdf8" weight={6} opacity={0.8} />}
             {points.length > 1 && (
-              <Polyline positions={points.map((p) => [p.lat, p.lon])} color="#ff6a00" weight={5} />
+              <Polyline positions={points.map((p) => [p.lat, p.lon])} color="#0057ff" weight={5} />
             )}
             {pos && (
               <CircleMarker
                 center={[pos.lat, pos.lon]}
                 radius={8}
                 color="#fff"
-                fillColor="#ff6a00"
+                fillColor="#0057ff"
                 fillOpacity={1}
               />
             )}
@@ -428,7 +428,7 @@ function TripDetail({ trip, onBack, onDelete }) {
         <div className="map-card">
           <MapContainer center={coords[0]} zoom={13} className="map small" zoomControl={false}>
             <TileLayer url={TILES} attribution="© OpenStreetMap" />
-            <Polyline positions={coords} color="#ff6a00" weight={5} />
+            <Polyline positions={coords} color="#0057ff" weight={5} />
             <FitTo coords={coords} />
           </MapContainer>
         </div>
@@ -473,7 +473,7 @@ function Trips({ trips, onOpen, onRide }) {
         <div className="card empty-card">
           <svg viewBox="0 0 64 64" className="empty-icon" aria-hidden="true">
             <circle cx="32" cy="36" r="22" fill="none" stroke="rgba(255,255,255,0.14)" strokeWidth="4" />
-            <path d="M16 49 A22 22 0 1 1 48 49" fill="none" stroke="#ff6a00" strokeWidth="4" strokeLinecap="round" />
+            <path d="M16 49 A22 22 0 1 1 48 49" fill="none" stroke="#0057ff" strokeWidth="4" strokeLinecap="round" />
             <line x1="32" y1="36" x2="44" y2="24" stroke="#f8fafc" strokeWidth="3" strokeLinecap="round" />
           </svg>
           <h2>Aucun trajet enregistré</h2>
