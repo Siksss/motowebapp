@@ -7,7 +7,8 @@ import { geocode, route } from './nav.js'
 
 const km = (m) => (m / 1000).toFixed(1) + ' km'
 const hms = (s) => new Date(Math.max(0, s) * 1000).toISOString().slice(11, 19)
-const TILES = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
+const TILES = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png'
+const TILE_ATTR = '© OpenStreetMap'
 
 function polar(cx, cy, r, deg) {
   const rad = (deg * Math.PI) / 180
@@ -495,19 +496,47 @@ function Ride({ rec }) {
           )}
           {msg && <div className="navinfo warn">{msg}</div>}
           <MapContainer center={[46.6, 2.4]} zoom={6} className="map" zoomControl={false}>
-            <TileLayer url={TILES} attribution="© OpenStreetMap" />
-            {nav && <Polyline positions={nav.coords} color="#38bdf8" weight={6} opacity={0.8} />}
+            <TileLayer url={TILES} attribution={TILE_ATTR} maxZoom={19} />
+            {nav && (
+              <>
+                <Polyline positions={nav.coords} color="#0057ff" weight={10} opacity={0.28} />
+                <Polyline positions={nav.coords} color="#38bdf8" weight={4.5} opacity={0.95} />
+              </>
+            )}
             {points.length > 1 && (
-              <Polyline positions={points.map((p) => [p.lat, p.lon])} color="#0057ff" weight={5} />
+              <>
+                <Polyline
+                  positions={points.map((p) => [p.lat, p.lon])}
+                  color="#0057ff"
+                  weight={10}
+                  opacity={0.28}
+                />
+                <Polyline
+                  positions={points.map((p) => [p.lat, p.lon])}
+                  color="#1d6bff"
+                  weight={4.5}
+                  opacity={1}
+                />
+              </>
             )}
             {pos && (
-              <CircleMarker
-                center={[pos.lat, pos.lon]}
-                radius={8}
-                color="#fff"
-                fillColor="#0057ff"
-                fillOpacity={1}
-              />
+              <>
+                <CircleMarker
+                  center={[pos.lat, pos.lon]}
+                  radius={16}
+                  stroke={false}
+                  fillColor="#0057ff"
+                  fillOpacity={0.25}
+                />
+                <CircleMarker
+                  center={[pos.lat, pos.lon]}
+                  radius={7}
+                  color="#ffffff"
+                  weight={2.5}
+                  fillColor="#0057ff"
+                  fillOpacity={1}
+                />
+              </>
             )}
             <Follow pos={pos} />
           </MapContainer>
@@ -554,8 +583,25 @@ function TripDetail({ trip, onBack, onDelete }) {
       {coords.length > 0 && (
         <div className="map-card">
           <MapContainer center={coords[0]} zoom={13} className="map small" zoomControl={false}>
-            <TileLayer url={TILES} attribution="© OpenStreetMap" />
-            <Polyline positions={coords} color="#0057ff" weight={5} />
+            <TileLayer url={TILES} attribution={TILE_ATTR} maxZoom={19} />
+            <Polyline positions={coords} color="#0057ff" weight={10} opacity={0.28} />
+            <Polyline positions={coords} color="#1d6bff" weight={4.5} opacity={1} />
+            <CircleMarker
+              center={coords[0]}
+              radius={5}
+              color="#050608"
+              weight={2}
+              fillColor="#cbd5e1"
+              fillOpacity={1}
+            />
+            <CircleMarker
+              center={coords.at(-1)}
+              radius={6}
+              color="#ffffff"
+              weight={2}
+              fillColor="#0057ff"
+              fillOpacity={1}
+            />
             <FitTo coords={coords} />
           </MapContainer>
         </div>

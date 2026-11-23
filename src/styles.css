@@ -531,7 +531,28 @@ button {
 .map {
   flex: 1;
   min-height: 0;
-  background: #0b0e14;
+  background: #090b10;
+}
+
+.leaflet-container {
+  background: #090b10;
+  font-family: inherit;
+}
+
+.leaflet-tile-pane {
+  filter: invert(1) hue-rotate(180deg) saturate(0.22) brightness(0.9) contrast(1.08);
+}
+
+.leaflet-control-attribution {
+  background: rgba(5, 6, 8, 0.72) !important;
+  color: #64748b !important;
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 6px 0 0 0;
+}
+
+.leaflet-control-attribution a {
+  color: #94a3b8 !important;
 }
 
 .map-view .leaflet-bottom {
@@ -564,6 +585,11 @@ button {
 
 .search input::placeholder {
   color: var(--muted);
+}
+
+.search input:focus {
+  border-color: rgba(59, 130, 246, 0.55);
+  box-shadow: 0 0 0 3px rgba(0, 87, 255, 0.2);
 }
 
 .search button {
