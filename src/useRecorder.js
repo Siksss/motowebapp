@@ -88,7 +88,7 @@ export function useRecorder(onSaved) {
           ? r.current.speed
           : 0
       const l = (r.current.lean = r.current.tracker.update(g, rr, v, now))
-      if (Math.abs(l) > Math.abs(r.current.peak)) r.current.peak = l
+      if (v >= 4 && Math.abs(l) > Math.abs(r.current.peak)) r.current.peak = l
       if (now - r.current.lastLog >= 200) {
         r.current.lastLog = now
         const snap = {
@@ -149,12 +149,21 @@ export function useRecorder(onSaved) {
     return true
   }
 
+  async function calibrate() {
+    await requestSensors()
+    r.current.tracker.calibrate()
+    r.current.lean = 0
+    r.current.peak = 0
+    setLean(0)
+  }
+
   async function start(resume = false) {
     await requestSensors()
     await lockScreen()
     r.current.points = resume ? loadCurrent() || [] : []
     r.current.peak = 0
-    r.current.tracker.resetLean()
+    if (resume) r.current.tracker.resetLean()
+    else r.current.tracker.calibrate()
     r.current.recording = true
     setPoints(r.current.points)
     setRecording(true)
@@ -203,6 +212,7 @@ export function useRecorder(onSaved) {
     error,
     start,
     stop,
+    calibrate,
     requestSensors,
     simSpeed,
     toggleSimSpeed,

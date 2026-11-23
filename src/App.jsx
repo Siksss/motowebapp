@@ -105,7 +105,8 @@ function SpeedGauge({ speed, maxSpeed, recording, hasPos, simSpeed }) {
 const LEAN_TRACK = arcPath(140, 100, 76, 215, 325)
 const LEAN_TICKS = [-45, -30, -15, 0, 15, 30, 45]
 
-function LeanGauge({ lean, maxLeft, maxRight }) {
+function LeanGauge({ lean, maxLeft, maxRight, onCalibrate }) {
+  const [calOk, setCalOk] = useState(false)
   const vis = Math.max(-55, Math.min(55, lean))
   const abs = Math.abs(lean)
   const high = Math.abs(vis) >= 40
@@ -120,6 +121,18 @@ function LeanGauge({ lean, maxLeft, maxRight }) {
 
   return (
     <div className="card lean-card">
+      <button
+        type="button"
+        className={calOk ? 'cal-btn ok' : 'cal-btn'}
+        aria-label="Calibrer le point zéro"
+        onClick={async () => {
+          await onCalibrate?.()
+          setCalOk(true)
+          setTimeout(() => setCalOk(false), 1200)
+        }}
+      >
+        {calOk ? 'OK' : '0°'}
+      </button>
       <div className="lean-peak">
         <small>MAX G</small>
         <b>{Math.round(maxLeft)}°</b>
@@ -428,7 +441,12 @@ function Ride({ rec }) {
             hasPos={!!pos}
             simSpeed={rec.simSpeed}
           />
-          <LeanGauge lean={lean} maxLeft={liveMaxL} maxRight={liveMaxR} />
+          <LeanGauge
+            lean={lean}
+            maxLeft={liveMaxL}
+            maxRight={liveMaxR}
+            onCalibrate={rec.calibrate}
+          />
           <div className="strip">
             <div>
               <small>Distance</small>
