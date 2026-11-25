@@ -72,11 +72,13 @@ export function createLeanTracker(isIOS) {
   let lastRawUp = null
   let lean = 0
   let wUp = 0
+  let gLong = 0
   let lastT = null
 
   function resetLean() {
     lean = 0
     wUp = 0
+    gLong = 0
     lastT = null
   }
 
@@ -112,6 +114,19 @@ export function createLeanTracker(isIOS) {
     const rollDeg = -(rot.x * frame.f.x + rot.y * frame.f.y + rot.z * frame.f.z) * (180 / Math.PI)
     const pred = lean + rollDeg * dt
 
+    // Projection longitudinale orthogonale à la verticale calibrée (zéro fuite de gravité)
+    const hint = Math.abs(frame.u.z) < 0.85 ? { x: 0, y: 0, z: -1 } : { x: 0, y: 1, z: 0 }
+    const dFwd = hint.x * frame.u.x + hint.y * frame.u.y + hint.z * frame.u.z
+    const fx = hint.x - dFwd * frame.u.x
+    const fy = hint.y - dFwd * frame.u.y
+    const fz = hint.z - dFwd * frame.u.z
+    const fn = Math.hypot(fx, fy, fz)
+    if (fn > 1e-3) {
+      const rawG = (rawUp.x * fx + rawUp.y * fy + rawUp.z * fz) / (fn * G)
+      const aG = 1 - Math.exp(-dt / 0.15)
+      gLong += aG * (Math.max(-2.5, Math.min(2.5, rawG)) - gLong)
+    }
+
     if (v >= MIN_SPEED) {
       const omegaUp = rot.x * frame.u.x + rot.y * frame.u.y + rot.z * frame.u.z
       const aW = 1 - Math.exp(-dt / 0.4)
@@ -136,16 +151,25 @@ export function createLeanTracker(isIOS) {
     return Math.abs(lean) < 1.5 ? 0 : lean
   }
 
-  return { update, calibrate, resetLean, state: () => ({ up: frame?.u ?? null, omega: wUp }) }
+  return {
+    update,
+    calibrate,
+    resetLean,
+    state: () => ({ up: frame?.u ?? null, omega: wUp, gLong: Math.abs(gLong) < 0.04 ? 0 : gLong }),
+  }
 }
 
-/** points: [{lat, lon, t(ms), speed(m/s|null), lean(deg)}] */
+/** points: [{lat, lon, t(ms), speed(m/s|null), lean(deg), alt?(m|null), gLong?(G)}] */
 export function tripStats(points) {
   let distance = 0
   let maxSpeed = 0
   let maxLeanLeft = 0
   let maxLeanRight = 0
+  let maxAccelG = 0
+  let maxBrakeG = 0
   let movingTime = 0
+  let elevationGain = 0
+  let refAlt = null
   for (let i = 0; i < points.length; i++) {
     const p = points[i]
     let v = p.speed
@@ -159,6 +183,19 @@ export function tripStats(points) {
     if (v != null) maxSpeed = Math.max(maxSpeed, v)
     maxLeanLeft = Math.max(maxLeanLeft, p.lean || 0)
     maxLeanRight = Math.max(maxLeanRight, -(p.lean || 0))
+    const gl = p.gLong || 0
+    if (gl > maxAccelG) maxAccelG = gl
+    if (-gl > maxBrakeG) maxBrakeG = -gl
+    if (p.alt != null && Number.isFinite(p.alt)) {
+      if (refAlt == null) {
+        refAlt = p.alt
+      } else if (p.alt - refAlt >= 3) {
+        elevationGain += p.alt - refAlt
+        refAlt = p.alt
+      } else if (refAlt - p.alt >= 3) {
+        refAlt = p.alt
+      }
+    }
   }
   const duration = points.length > 1 ? (points.at(-1).t - points[0].t) / 1000 : 0
   return {
@@ -170,5 +207,8 @@ export function tripStats(points) {
     avgMovingSpeed: movingTime ? (distance / movingTime) * 3.6 : 0,
     maxLeanLeft,
     maxLeanRight,
+    maxAccelG,
+    maxBrakeG,
+    elevationGain, // m
   }
 }

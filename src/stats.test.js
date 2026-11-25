@@ -160,4 +160,47 @@ test('stats d\'un trajet', () => {
   assert.equal(s.maxLeanLeft, 30)
   assert.equal(s.maxLeanRight, 20)
   assert.ok(Math.abs(s.avgSpeed - 40.03) < 0.1)
+  assert.equal(s.elevationGain, 0)
+})
+
+test('tripStats : dénivelé positif D+ avec hystérésis 3 m anti-bruit GPS', () => {
+  const pts = [
+    { lat: 0, lon: 0, t: 0, alt: 100 },
+    { lat: 0, lon: 0, t: 1000, alt: 102 }, // bruit < 3 m ignoré
+    { lat: 0, lon: 0, t: 2000, alt: 101 },
+    { lat: 0, lon: 0, t: 3000, alt: 102.5 },
+    { lat: 0, lon: 0, t: 4000, alt: 160 }, // +60 m
+    { lat: 0, lon: 0, t: 5000, alt: 120 }, // descente 40 m
+    { lat: 0, lon: 0, t: 6000, alt: 180 }, // +60 m -> total 120 m
+  ]
+  const s = tripStats(pts)
+  assert.equal(s.elevationGain, 120)
+})
+
+test('createLeanTracker + tripStats : G-mètre longitudinal accélération et freinage', () => {
+  const tracker = createLeanTracker(false)
+  let t = 0
+  // Calibration téléphone droit W3C (+Y haut, -Z vers l avant)
+  tracker.update({ x: 0, y: 9.81, z: 0 }, { alpha: 0, beta: 0, gamma: 0 }, 0, (t += 20))
+  tracker.calibrate()
+  assert.equal(tracker.state().gLong, 0)
+
+  // Accélération vers l avant de 0.5 G (force vers -Z en W3C)
+  for (let i = 0; i < 40; i++) {
+    tracker.update({ x: 0, y: 9.81, z: -0.5 * 9.81 }, { alpha: 0, beta: 0, gamma: 0 }, 15, (t += 20))
+  }
+  assert.ok(tracker.state().gLong > 0.45 && tracker.state().gLong < 0.55, tracker.state().gLong)
+
+  // Freinage de -0.7 G (force vers +Z en W3C)
+  for (let i = 0; i < 40; i++) {
+    tracker.update({ x: 0, y: 9.81, z: 0.7 * 9.81 }, { alpha: 0, beta: 0, gamma: 0 }, 15, (t += 20))
+  }
+  assert.ok(tracker.state().gLong < -0.65 && tracker.state().gLong > -0.75, tracker.state().gLong)
+
+  const stats = tripStats([
+    { lat: 0, lon: 0, t: 0, speed: 15, lean: 0, gLong: 0.48 },
+    { lat: 0.001, lon: 0, t: 5000, speed: 10, lean: 0, gLong: -0.68 },
+  ])
+  assert.equal(stats.maxAccelG, 0.48)
+  assert.equal(stats.maxBrakeG, 0.68)
 })

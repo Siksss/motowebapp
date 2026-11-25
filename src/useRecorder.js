@@ -9,6 +9,7 @@ const isIOS =
 export function useRecorder(onSaved) {
   const [pos, setPos] = useState(null) // {lat, lon, speed}
   const [lean, setLean] = useState(0)
+  const [gLong, setGLong] = useState(0)
   const [points, setPoints] = useState([])
   const [recording, setRecording] = useState(false)
   const [error, setError] = useState(null)
@@ -23,6 +24,8 @@ export function useRecorder(onSaved) {
     lastPos: null,
     lean: 0,
     peak: 0,
+    gLong: 0,
+    peakG: 0,
     wake: null,
     simSpeed: false,
     lastLog: 0,
@@ -47,17 +50,27 @@ export function useRecorder(onSaved) {
         if (coords.accuracy <= 50) {
           r.current.lastPos = { lat: coords.latitude, lon: coords.longitude, t: timestamp }
         }
-        const p = { lat: coords.latitude, lon: coords.longitude, speed }
+        const alt =
+          coords.altitude != null && Number.isFinite(coords.altitude)
+            ? Math.round(coords.altitude * 10) / 10
+            : null
+        const p = { lat: coords.latitude, lon: coords.longitude, speed, alt }
         r.current.speed = speed ?? 0
         r.current.speedAt = now
         setPos(p)
         if (!r.current.recording) return
         if (coords.accuracy > 50) return // point GPS trop imprécis
-        const pt = { ...p, t: timestamp, lean: Math.round(r.current.peak * 10) / 10 }
+        const pt = {
+          ...p,
+          t: timestamp,
+          lean: Math.round(r.current.peak * 10) / 10,
+          ...(r.current.peakG ? { gLong: Math.round(r.current.peakG * 100) / 100 } : {}),
+        }
         r.current.peak = 0
+        r.current.peakG = 0
         r.current.points = [...r.current.points, pt]
         setPoints(r.current.points)
-        saveCurrent(r.current.points)
+        saveCurrent(r.current.points).catch(() => {})
       },
       (e) => setError('GPS : ' + e.message),
       { enableHighAccuracy: true, maximumAge: 0 }
@@ -88,7 +101,9 @@ export function useRecorder(onSaved) {
           ? r.current.speed
           : 0
       const l = (r.current.lean = r.current.tracker.update(g, rr, v, now))
+      const gl = (r.current.gLong = r.current.tracker.state().gLong)
       if (v >= 4 && Math.abs(l) > Math.abs(r.current.peak)) r.current.peak = l
+      if (v >= 4 && Math.abs(gl) > Math.abs(r.current.peakG)) r.current.peakG = gl
       if (now - r.current.lastLog >= 200) {
         r.current.lastLog = now
         const snap = {
@@ -111,6 +126,7 @@ export function useRecorder(onSaved) {
     window.addEventListener('devicemotion', onMotion)
     const ui = setInterval(() => {
       setLean(r.current.lean)
+      setGLong(r.current.gLong)
       setDebug((prev) => (prev === r.current.debug ? prev : r.current.debug))
       setLogCount(r.current.logs.length)
     }, 100)
@@ -154,14 +170,18 @@ export function useRecorder(onSaved) {
     r.current.tracker.calibrate()
     r.current.lean = 0
     r.current.peak = 0
+    r.current.gLong = 0
+    r.current.peakG = 0
     setLean(0)
+    setGLong(0)
   }
 
   async function start(resume = false) {
     await requestSensors()
     await lockScreen()
-    r.current.points = resume ? loadCurrent() || [] : []
+    r.current.points = Array.isArray(resume) ? resume : resume ? (await loadCurrent()) || [] : []
     r.current.peak = 0
+    r.current.peakG = 0
     if (resume) r.current.tracker.resetLean()
     else r.current.tracker.calibrate()
     r.current.recording = true
@@ -169,14 +189,18 @@ export function useRecorder(onSaved) {
     setRecording(true)
   }
 
-  function stop() {
+  async function stop() {
     r.current.recording = false
     setRecording(false)
     r.current.wake?.release()
     const pts = r.current.points
-    if (pts.length < 2) return clearCurrent()
+    if (pts.length < 2) {
+      await clearCurrent()
+      return
+    }
     const trip = { id: Date.now(), date: pts[0].t, points: pts, stats: tripStats(pts) }
-    onSaved(addTrip(trip), trip)
+    const all = await addTrip(trip)
+    onSaved(all, trip)
   }
 
   function toggleSimSpeed() {
@@ -184,8 +208,10 @@ export function useRecorder(onSaved) {
     r.current.simSpeed = next
     r.current.tracker.resetLean()
     r.current.lean = 0
+    r.current.gLong = 0
     setSimSpeed(next)
     setLean(0)
+    setGLong(0)
   }
 
   function exportLogs() {
@@ -207,6 +233,7 @@ export function useRecorder(onSaved) {
   return {
     pos,
     lean,
+    gLong,
     points,
     recording,
     error,
